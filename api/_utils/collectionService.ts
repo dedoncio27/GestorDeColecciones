@@ -53,8 +53,16 @@ export const getCollections = async () => {
   await initializeData();
   if (redis && !inMemoryData) {
     try {
-      const data = await redis.get(COLLECTIONS_KEY);
-      return JSON.parse(data as string);
+      const data = await redis.get(COLLECTIONS_KEY) as string | null;
+      if (!data) {
+        console.warn('No Redis data found for collections, using fallback.');
+        inMemoryData = [
+          { id: '1', name: 'Libros', icon: 'Book', count: 0, description: 'Mi colección personal de libros favoritos.', items: [] },
+          { id: '2', name: 'Monedas', icon: 'Coins', count: 0, description: 'Monedas antiguas y raras de todo el mundo.', items: [] }
+        ];
+        return inMemoryData;
+      }
+      return JSON.parse(data);
     } catch (error) {
       console.error('Redis error in getCollections:', error);
       return inMemoryData || [];
