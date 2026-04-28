@@ -2,8 +2,6 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import * as collectionService from '../_utils/collectionService';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  console.log('API called:', req.method, req.url);
-  console.log('Body:', req.body);
   try {
     if (req.method === 'GET') {
       const collections = await collectionService.getCollections();
@@ -16,6 +14,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   } catch (error) {
     console.error('API Error:', error);
-    res.status(500).json({ error: 'Internal Server Error', details: error.message });
+    res.status(500).json({ error: 'Internal Server Error' });
   }
 }
