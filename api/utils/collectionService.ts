@@ -1,75 +1,56 @@
-import { Redis } from '@upstash/redis';
-
-let redis: Redis | null = null;
-let inMemoryData: any[] | null = null;
-
-try {
-  if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
-    redis = new Redis({
-      url: process.env.UPSTASH_REDIS_REST_URL,
-      token: process.env.UPSTASH_REDIS_REST_TOKEN,
-    });
-  }
-} catch (error) {
-  console.error('Failed to initialize Redis:', error);
-}
+import { kv } from '@vercel/kv';
 
 const COLLECTIONS_KEY = 'collections';
+const THEME_COLOR_KEY = 'themeColor';
+const COLLECTION_BG_COLOR_KEY = 'collectionBgColor';
 
-// Inicializar datos si no existen
-const initializeData = async () => {
-  if (redis) {
-    try {
-      const exists = await redis.exists(COLLECTIONS_KEY);
-      if (!exists) {
-        const initialData = [
-          { id: '1', name: 'Libros', icon: 'Book', count: 0, description: 'Mi colección personal de libros favoritos.', items: [] },
-          { id: '2', name: 'Monedas', icon: 'Coins', count: 0, description: 'Monedas antiguas y raras de todo el mundo.', items: [] }
-        ];
-        await redis.set(COLLECTIONS_KEY, JSON.stringify(initialData));
-      }
-    } catch (error) {
-      console.error('Redis error in initializeData:', error);
-      // Fallback to in-memory
-      if (!inMemoryData) {
-        inMemoryData = [
-          { id: '1', name: 'Libros', icon: 'Book', count: 0, description: 'Mi colección personal de libros favoritos.', items: [] },
-          { id: '2', name: 'Monedas', icon: 'Coins', count: 0, description: 'Monedas antiguas y raras de todo el mundo.', items: [] }
-        ];
-      }
-    }
-  } else {
-    // No Redis, use in-memory
-    if (!inMemoryData) {
-      inMemoryData = [
-        { id: '1', name: 'Libros', icon: 'Book', count: 0, description: 'Mi colección personal de libros favoritos.', items: [] },
-        { id: '2', name: 'Monedas', icon: 'Coins', count: 0, description: 'Monedas antiguas y raras de todo el mundo.', items: [] }
-      ];
-    }
+const defaultCollections = [
+  { id: '1', name: 'Libros', icon: 'Book', count: 0, description: 'Mi colección personal de libros favoritos.', items: [] },
+  { id: '2', name: 'Monedas', icon: 'Coins', count: 0, description: 'Monedas antiguas y raras de todo el mundo.', items: [] }
+];
+
+const defaultThemeColor = '#3f5efb';
+const defaultCollectionBgColor = '#f0f2f5';
+
+const parseCollections = (value: string | null) => {
+  if (!value) return null;
+  try {
+    return JSON.parse(value);
+  } catch (error) {
+    console.error('Failed to parse collections from KV:', error);
+    return null;
   }
 };
 
-export const getCollections = async () => {
-  await initializeData();
-  if (redis && !inMemoryData) {
-    try {
-      const data = await redis.get(COLLECTIONS_KEY) as string | null;
-      if (!data) {
-        console.warn('No Redis data found for collections, using fallback.');
-        inMemoryData = [
-          { id: '1', name: 'Libros', icon: 'Book', count: 0, description: 'Mi colección personal de libros favoritos.', items: [] },
-          { id: '2', name: 'Monedas', icon: 'Coins', count: 0, description: 'Monedas antiguas y raras de todo el mundo.', items: [] }
-        ];
-        return inMemoryData;
-      }
-      return JSON.parse(data);
-    } catch (error) {
-      console.error('Redis error in getCollections:', error);
-      return inMemoryData || [];
-    }
-  } else {
-    return inMemoryData || [];
+const getCollectionsFromKv = async () => {
+  try {
+    const stored = await kv.get<string>(COLLECTIONS_KEY);
+    return parseCollections(stored ?? null);
+  } catch (error) {
+    console.error('KV error reading collections:', error);
+    return null;
   }
+};
+
+const saveCollectionsToKv = async (collections: any[]) => {
+  try {
+    await kv.set(COLLECTIONS_KEY, JSON.stringify(collections));
+  } catch (error) {
+    console.error('KV error writing collections:', error);
+  }
+};
+
+const ensureCollections = async () => {
+  const collections = await getCollectionsFromKv();
+  if (collections && Array.isArray(collections)) {
+    return collections;
+  }
+  await saveCollectionsToKv(defaultCollections);
+  return defaultCollections;
+};
+
+export const getCollections = async () => {
+  return await ensureCollections();
 };
 
 export const saveCollection = async (collection: any) => {
@@ -82,33 +63,15 @@ export const saveCollection = async (collection: any) => {
     count: 0,
     items: []
   };
-  collections.push(newCollection);
-  if (redis && !inMemoryData) {
-    try {
-      await redis.set(COLLECTIONS_KEY, JSON.stringify(collections));
-    } catch (error) {
-      console.error('Redis error in saveCollection:', error);
-      inMemoryData = collections;
-    }
-  } else {
-    inMemoryData = collections;
-  }
+  const updated = [...collections, newCollection];
+  await saveCollectionsToKv(updated);
   return newCollection;
 };
 
 export const deleteCollection = async (id: string) => {
-  let collections = await getCollections();
-  collections = collections.filter((c: any) => c.id !== id);
-  if (redis && !inMemoryData) {
-    try {
-      await redis.set(COLLECTIONS_KEY, JSON.stringify(collections));
-    } catch (error) {
-      console.error('Redis error in deleteCollection:', error);
-      inMemoryData = collections;
-    }
-  } else {
-    inMemoryData = collections;
-  }
+  const collections = await getCollections();
+  const updated = collections.filter((c: any) => c.id !== id);
+  await saveCollectionsToKv(updated);
 };
 
 // --- GESTIÓN DE ITEMS ---
@@ -116,7 +79,6 @@ export const deleteCollection = async (id: string) => {
 export const addItemToCollection = async (collectionId: string, itemData: any) => {
   const collections = await getCollections();
   const collectionIndex = collections.findIndex((c: any) => c.id === collectionId);
-
   if (collectionIndex === -1) throw new Error('Colección no encontrada');
 
   const newItem = {
@@ -130,73 +92,71 @@ export const addItemToCollection = async (collectionId: string, itemData: any) =
     createdAt: new Date().toISOString()
   };
 
-  if (!collections[collectionIndex].items) {
-    collections[collectionIndex].items = [];
-  }
-
+  collections[collectionIndex].items = collections[collectionIndex].items || [];
   collections[collectionIndex].items.push(newItem);
   collections[collectionIndex].count = collections[collectionIndex].items.length;
-
-  if (redis && !inMemoryData) {
-    try {
-      await redis.set(COLLECTIONS_KEY, JSON.stringify(collections));
-    } catch (error) {
-      console.error('Redis error in addItemToCollection:', error);
-      inMemoryData = collections;
-    }
-  } else {
-    inMemoryData = collections;
-  }
+  await saveCollectionsToKv(collections);
   return newItem;
 };
 
-// Eliminar un elemento específico
 export const deleteItemFromCollection = async (collectionId: string, itemId: string) => {
   const collections = await getCollections();
   const collectionIndex = collections.findIndex((c: any) => c.id === collectionId);
-
   if (collectionIndex === -1) return;
 
-  if (collections[collectionIndex].items) {
-    collections[collectionIndex].items = collections[collectionIndex].items.filter((item: any) => item.id !== itemId);
-    collections[collectionIndex].count = collections[collectionIndex].items.length;
-    if (redis && !inMemoryData) {
-      try {
-        await redis.set(COLLECTIONS_KEY, JSON.stringify(collections));
-      } catch (error) {
-        console.error('Redis error in deleteItemFromCollection:', error);
-        inMemoryData = collections;
-      }
-    } else {
-      inMemoryData = collections;
-    }
-  }
+  const items = collections[collectionIndex].items || [];
+  collections[collectionIndex].items = items.filter((item: any) => item.id !== itemId);
+  collections[collectionIndex].count = collections[collectionIndex].items.length;
+  await saveCollectionsToKv(collections);
 };
 
-// Actualizar un elemento existente
 export const updateItemInCollection = async (collectionId: string, itemId: string, itemData: any) => {
   const collections = await getCollections();
   const collectionIndex = collections.findIndex((c: any) => c.id === collectionId);
-
   if (collectionIndex === -1) throw new Error('Colección no encontrada');
 
-  const itemIndex = collections[collectionIndex].items.findIndex((item: any) => item.id === itemId);
+  const items = collections[collectionIndex].items || [];
+  const itemIndex = items.findIndex((item: any) => item.id === itemId);
   if (itemIndex === -1) throw new Error('Elemento no encontrado');
 
   collections[collectionIndex].items[itemIndex] = {
     ...collections[collectionIndex].items[itemIndex],
     ...itemData
   };
-
-  if (redis && !inMemoryData) {
-    try {
-      await redis.set(COLLECTIONS_KEY, JSON.stringify(collections));
-    } catch (error) {
-      console.error('Redis error in updateItemInCollection:', error);
-      inMemoryData = collections;
-    }
-  } else {
-    inMemoryData = collections;
-  }
+  await saveCollectionsToKv(collections);
   return collections[collectionIndex].items[itemIndex];
+};
+
+export const getSettings = async () => {
+  try {
+    const themeColor = await kv.get<string>(THEME_COLOR_KEY);
+    const collectionBgColor = await kv.get<string>(COLLECTION_BG_COLOR_KEY);
+    return {
+      themeColor: themeColor || defaultThemeColor,
+      collectionBgColor: collectionBgColor || defaultCollectionBgColor,
+    };
+  } catch (error) {
+    console.error('KV error reading settings:', error);
+    return {
+      themeColor: defaultThemeColor,
+      collectionBgColor: defaultCollectionBgColor,
+    };
+  }
+};
+
+export const saveSettings = async ({ themeColor, collectionBgColor }: { themeColor?: string; collectionBgColor?: string }) => {
+  try {
+    if (themeColor) await kv.set(THEME_COLOR_KEY, themeColor);
+    if (collectionBgColor) await kv.set(COLLECTION_BG_COLOR_KEY, collectionBgColor);
+    return {
+      themeColor: themeColor || defaultThemeColor,
+      collectionBgColor: collectionBgColor || defaultCollectionBgColor,
+    };
+  } catch (error) {
+    console.error('KV error saving settings:', error);
+    return {
+      themeColor: themeColor || defaultThemeColor,
+      collectionBgColor: collectionBgColor || defaultCollectionBgColor,
+    };
+  }
 };

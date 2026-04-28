@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import { Plus, LayoutGrid, Book, Coins, Gamepad2, Search, Trash2, X, Folder, Music, Film, Camera, Heart, Star, Watch, Coffee, PenTool, Globe, PackagePlus, Calendar, SearchX, Filter } from 'lucide-react'
 import { useCollections } from './context/CollectionsContext'
+import { settingsApi } from './api/client'
 import { useNavigate, useLocation } from 'react-router-dom'
 
 const IconComponent = ({ name, size = 24 }: { name: string, size?: number }) => {
@@ -33,6 +34,7 @@ function App() {
     if (typeof window === 'undefined') return '#f0f2f5'
     return localStorage.getItem('gc_collectionBgColor') ?? '#f0f2f5'
   })
+  const [settingsLoaded, setSettingsLoaded] = useState(false)
   const [showThemeControls, setShowThemeControls] = useState(false)
   const { collections, loading, removeCollection, removeItem } = useCollections()
   const navigate = useNavigate()
@@ -43,6 +45,29 @@ function App() {
       setSelectedColId(location.state.selectedColId)
     }
   }, [location.state?.selectedColId])
+
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const settings = await settingsApi.get();
+        if (settings.themeColor) setThemeColor(settings.themeColor);
+        if (settings.collectionBgColor) setCollectionBgColor(settings.collectionBgColor);
+      } catch (error) {
+        console.error('Error loading theme settings:', error);
+      } finally {
+        setSettingsLoaded(true);
+      }
+    };
+
+    loadSettings();
+  }, [])
+
+  useEffect(() => {
+    if (!settingsLoaded) return;
+    settingsApi.save({ themeColor, collectionBgColor }).catch((error) => {
+      console.error('Error saving theme settings:', error);
+    });
+  }, [themeColor, collectionBgColor, settingsLoaded])
 
   useEffect(() => {
     localStorage.setItem('gc_themeColor', themeColor)
