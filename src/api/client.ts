@@ -1,7 +1,12 @@
 import axios from 'axios';
 import type { Collection, Item } from '../types';
 
-const API_URL = import.meta.env.VITE_API_URL ?? '/api/collections';
+// Para desarrollo: localhost:5000
+// Para producción en Vercel: usar un backend externo (servidor Node en Railway, Render, etc.)
+const API_URL = import.meta.env.VITE_API_URL || 
+  (typeof window !== 'undefined' && window.location.hostname === 'localhost' 
+    ? 'http://localhost:5000/api/collections'
+    : '/api/collections');
 
 export const collectionsApi = {
     async getAll(): Promise<Collection[]> {

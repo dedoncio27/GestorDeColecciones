@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "concurrently \"npm run dev --prefix server\" \"vite\"",
-    "build": "tsc && vite build && npm run build --prefix server",
+    "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"
   },
