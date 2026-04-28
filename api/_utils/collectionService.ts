@@ -1,1 +1,1 @@
-export * from '../utils/collectionService';
+export * from '../utils/collectionService.js';
