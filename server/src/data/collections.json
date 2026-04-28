@@ -4,7 +4,7 @@
     "name": "Peliculas",
     "icon": "Folder",
     "description": "",
-    "count": 1,
+    "count": 2,
     "items": [
       {
         "id": "1776870857137",
@@ -15,6 +15,16 @@
         "rating": 5,
         "date": "2026-04-22",
         "createdAt": "2026-04-22T15:14:17.137Z"
+      },
+      {
+        "id": "1777380031891",
+        "collectionId": "1776870799689",
+        "name": "Adrian",
+        "description": "",
+        "imageUrl": "",
+        "rating": 5,
+        "date": "2026-04-28",
+        "createdAt": "2026-04-28T12:40:31.891Z"
       }
     ]
   },
