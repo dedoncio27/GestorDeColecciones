@@ -26,7 +26,7 @@ export default function AddItem() {
     onSubmit: async (v) => {
       if (id) {
         await addItem(id, v);
-        navigate('/');
+        navigate('/', { state: { selectedColId: id } });
       }
     }
   });
@@ -51,7 +51,7 @@ export default function AddItem() {
         <div className="bg-white w-full rounded-[60px] shadow-2xl shadow-blue-900/10 flex flex-col overflow-hidden relative border border-white">
           
           <button 
-            onClick={() => navigate('/')}
+            onClick={() => navigate('/', { state: { selectedColId: id } })}
             className="absolute top-8 right-8 w-12 h-12 bg-gray-100 hover:bg-gray-200 text-gray-500 rounded-2xl flex items-center justify-center transition-all hover:scale-110 active:scale-90 z-[50] cursor-pointer"
             type="button"
           >

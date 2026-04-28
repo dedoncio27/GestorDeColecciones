@@ -29,7 +29,7 @@ export default function EditItem() {
     onSubmit: async (v) => {
       if (id && itemId) {
         await updateItem(id, itemId, v);
-        navigate('/');
+        navigate('/', { state: { selectedColId: id } });
       }
     }
   });
@@ -51,7 +51,7 @@ export default function EditItem() {
     if (id && itemId && currentItem) {
       if (window.confirm(`¿Estás seguro de que quieres eliminar el elemento "${currentItem.name}"?`)) {
         await removeItem(id, itemId);
-        navigate('/');
+        navigate('/', { state: { selectedColId: id } });
       }
     }
   };
@@ -65,7 +65,7 @@ export default function EditItem() {
         <div className="bg-white w-full rounded-[60px] shadow-2xl shadow-blue-900/10 flex flex-col overflow-hidden relative border border-white">
 
           <button
-            onClick={() => navigate('/')}
+            onClick={() => navigate('/', { state: { selectedColId: id } })}
             className="absolute top-8 right-8 w-12 h-12 bg-gray-100 hover:bg-gray-200 text-gray-500 rounded-2xl flex items-center justify-center transition-all hover:scale-110 active:scale-90 z-[50] cursor-pointer"
             type="button"
           >

@@ -1,7 +1,7 @@
-import { useState, useMemo } from 'react'
-import { Plus, LayoutGrid, Book, Coins, Gamepad2, Search, Trash2, X, Folder, Music, Film, Camera, Heart, Star, Watch, Coffee, PenTool, Globe, Info, PackagePlus, Calendar, Edit3, SearchX, Filter } from 'lucide-react'
+import { useState, useMemo, useEffect } from 'react'
+import { Plus, LayoutGrid, Book, Coins, Gamepad2, Search, Trash2, X, Folder, Music, Film, Camera, Heart, Star, Watch, Coffee, PenTool, Globe, PackagePlus, Calendar, SearchX, Filter } from 'lucide-react'
 import { useCollections } from './context/CollectionsContext'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 
 const IconComponent = ({ name, size = 24 }: { name: string, size?: number }) => {
   const icons: Record<string, any> = {
@@ -11,13 +11,51 @@ const IconComponent = ({ name, size = 24 }: { name: string, size?: number }) => 
   return <Icon size={size} />;
 }
 
+const getContrastColor = (hex: string) => {
+  const normalized = hex.replace('#', '');
+  const r = parseInt(normalized.length === 3 ? normalized[0] + normalized[0] : normalized.slice(0, 2), 16);
+  const g = parseInt(normalized.length === 3 ? normalized[1] + normalized[1] : normalized.slice(2, 4), 16);
+  const b = parseInt(normalized.length === 3 ? normalized[2] + normalized[2] : normalized.slice(4, 6), 16);
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance > 0.55 ? '#000000' : '#ffffff';
+}
+
 function App() {
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(false)
   const [selectedColId, setSelectedColId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [exactRating, setExactRating] = useState(0)
+  const [themeColor, setThemeColor] = useState(() => {
+    if (typeof window === 'undefined') return '#3f5efb'
+    return localStorage.getItem('gc_themeColor') ?? '#3f5efb'
+  })
+  const [collectionBgColor, setCollectionBgColor] = useState(() => {
+    if (typeof window === 'undefined') return '#f0f2f5'
+    return localStorage.getItem('gc_collectionBgColor') ?? '#f0f2f5'
+  })
+  const [showThemeControls, setShowThemeControls] = useState(false)
   const { collections, loading, removeCollection, removeItem } = useCollections()
   const navigate = useNavigate()
+  const location = useLocation()
+
+  useEffect(() => {
+    if (location.state?.selectedColId) {
+      setSelectedColId(location.state.selectedColId)
+    }
+  }, [location.state?.selectedColId])
+
+  useEffect(() => {
+    localStorage.setItem('gc_themeColor', themeColor)
+  }, [themeColor])
+
+  useEffect(() => {
+    localStorage.setItem('gc_collectionBgColor', collectionBgColor)
+  }, [collectionBgColor])
+
+  const themeTextColor = useMemo(() => getContrastColor(themeColor), [themeColor])
+  const collectionBgTextColor = useMemo(() => getContrastColor(collectionBgColor), [collectionBgColor])
+  const themeTextSecondaryColor = themeTextColor === '#ffffff' ? 'rgba(255,255,255,0.75)' : 'rgba(0,0,0,0.65)'
+  const themeTextMutedColor = themeTextColor === '#ffffff' ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.45)'
 
   const activeCollection = collections.find(c => c.id === (selectedColId || (collections.length > 0 ? collections[0].id : null)))
 
@@ -56,26 +94,27 @@ function App() {
     <div className="flex h-screen w-screen overflow-hidden bg-[#f0f2f5] font-['Segoe_UI',sans-serif]">
       {/* --- BARRA LATERAL --- */}
       <aside 
-        className={`flex-shrink-0 bg-[#3f5efb] text-white flex flex-col z-[1000] shadow-[4px_0_20px_rgba(63,94,251,0.2)] transition-all duration-400 ease-[cubic-bezier(0.175,0.885,0.32,1.275)] ${isSidebarExpanded ? 'w-[30%]' : 'w-[80px]'}`}
+        className={`flex-shrink-0 flex flex-col z-[1000] shadow-[4px_0_20px_rgba(63,94,251,0.2)] transition-all duration-400 ease-[cubic-bezier(0.175,0.885,0.32,1.275)] ${isSidebarExpanded ? 'w-[30%]' : 'w-[80px]'}`}
+        style={{ backgroundColor: themeColor, color: themeTextColor }}
         onMouseEnter={() => setIsSidebarExpanded(true)}
         onMouseLeave={() => setIsSidebarExpanded(false)}
       >
         <div className="p-6 flex items-center gap-4 border-b border-white/20 flex-shrink-0">
-          <div className="min-w-[40px] h-[40px] bg-white text-[#3f5efb] rounded-lg flex items-center justify-center font-bold text-lg shadow-lg cursor-pointer">
-            GC
-          </div>
-          <span className={`text-xl font-black text-white whitespace-nowrap transition-all duration-300 ${isSidebarExpanded ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4 w-0 overflow-hidden'}`}>
-            Gestor de Colecciones
-          </span>
+            <div className="min-w-[40px] h-[40px] bg-white rounded-lg flex items-center justify-center font-bold text-lg shadow-lg cursor-pointer" style={{ color: themeColor }}>
+              GC
+            </div>
+            <span className={`text-xl font-black whitespace-nowrap transition-all duration-300 ${isSidebarExpanded ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4 w-0 overflow-hidden'}`} style={{ color: themeTextColor }}>
+              Gestor de Colecciones
+            </span>
         </div>
 
         <nav className="flex-grow py-6 px-3 overflow-y-auto overflow-x-hidden custom-scrollbar">
-          <h2 className={`text-[0.7rem] uppercase tracking-[2px] text-white mb-4 px-3 font-black transition-opacity duration-300 ${isSidebarExpanded ? 'opacity-100' : 'opacity-0'}`}>
+          <h2 className={`text-[0.7rem] uppercase tracking-[2px] mb-4 px-3 font-black transition-opacity duration-300 ${isSidebarExpanded ? 'opacity-100' : 'opacity-0'}`} style={{ color: themeTextColor }}>
             Tus Bloques
           </h2>
           <div className="space-y-2">
             {loading ? (
-              <div className="px-3 text-sm text-white animate-pulse font-bold">Cargando...</div>
+              <div className="px-3 text-sm animate-pulse font-bold" style={{ color: themeTextSecondaryColor }}>Cargando...</div>
             ) : (
               collections.map((col) => {
                 const isSelected = activeCollection?.id === col.id;
@@ -90,7 +129,8 @@ function App() {
                         setSearchQuery(''); 
                         setExactRating(0);
                       }}
-                      className={`w-full flex items-center p-4 rounded-xl transition-all duration-300 cursor-pointer ${isSelected ? 'bg-white text-[#3f5efb] shadow-xl scale-[1.02]' : 'text-white hover:bg-white/10'}`}
+                      className={`w-full flex items-center p-4 rounded-xl transition-all duration-300 cursor-pointer ${isSelected ? 'bg-white shadow-xl scale-[1.02]' : 'hover:bg-white/10'}`}
+                      style={{ color: isSelected ? themeColor : themeTextColor }}
                     >
                       <div className="min-w-[32px] flex justify-center transition-transform duration-300 group-hover/sidebar-item:scale-110">
                         <IconComponent name={col.icon} />
@@ -98,7 +138,7 @@ function App() {
                       
                       <div className={`ml-4 text-left transition-all duration-300 ${isSidebarExpanded ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-10 w-0 overflow-hidden'}`}>
                         <p className="font-black text-sm leading-tight whitespace-nowrap text-inherit">{col.name}</p>
-                        <p className={`text-[10px] mt-0.5 font-bold ${isSelected ? 'text-[#3f5efb]/60' : 'text-white/60'}`}>
+                        <p className="text-[10px] mt-0.5 font-bold" style={{ color: isSelected ? `${themeColor}99` : themeTextMutedColor }}>
                           {col.items?.length || 0} elementos
                         </p>
                       </div>
@@ -108,9 +148,8 @@ function App() {
                     {isSidebarExpanded && (
                       <button 
                         onClick={(e) => handleDeleteCollection(e, col.id, col.name)}
-                        className={`absolute right-6 top-1/2 -translate-y-1/2 p-2 transition-all duration-300 cursor-pointer z-[10] 
-                          ${isSelected ? 'opacity-100 text-[#3f5efb] hover:text-red-500' : 'opacity-0 group-hover/sidebar-item:opacity-100 text-white/40 hover:text-red-400'}
-                        `}
+                        className={`absolute right-6 top-1/2 -translate-y-1/2 p-2 transition-all duration-300 cursor-pointer z-[10] ${isSelected ? 'opacity-100 hover:text-red-500' : 'opacity-0 group-hover/sidebar-item:opacity-100 hover:text-red-400'}`}
+                        style={{ color: isSelected ? themeColor : themeTextMutedColor }}
                       >
                         <Trash2 size={16} />
                       </button>
@@ -125,7 +164,8 @@ function App() {
         <div className="p-4 border-t border-white/20 flex-shrink-0">
           <button 
             onClick={() => navigate('/create')}
-            className={`w-full bg-white text-[#3f5efb] rounded-xl cursor-pointer flex items-center transition-all duration-300 group hover:scale-[1.05] active:scale-95 shadow-2xl ${isSidebarExpanded ? 'p-5 justify-start' : 'p-5 justify-center'}`}
+            className={`w-full bg-white rounded-xl cursor-pointer flex items-center transition-all duration-300 group hover:scale-[1.05] active:scale-95 shadow-2xl ${isSidebarExpanded ? 'p-5 justify-start' : 'p-5 justify-center'}`}
+            style={{ color: themeColor }}
           >
             <Plus size={28} strokeWidth={3} className="group-hover:rotate-90 transition-transform duration-300" />
             <span className={`ml-4 font-black text-lg whitespace-nowrap transition-all duration-300 ${isSidebarExpanded ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-10 w-0 overflow-hidden'}`}>
@@ -137,7 +177,8 @@ function App() {
 
       {/* --- CONTENIDO PRINCIPAL --- */}
       <main 
-        className={`flex-grow h-screen flex flex-col overflow-hidden transition-all duration-400 ease-[cubic-bezier(0.175,0.885,0.32,1.275)] ${isSidebarExpanded ? 'brightness-95 bg-black/5' : ''}`}
+        className={`flex-grow h-screen flex flex-col overflow-hidden transition-all duration-400 ease-[cubic-bezier(0.175,0.885,0.32,1.275)] ${isSidebarExpanded ? 'brightness-95' : ''}`}
+        style={{ backgroundColor: collectionBgColor }}
       >
         {collections.length > 0 && activeCollection ? (
           <>
@@ -145,46 +186,84 @@ function App() {
               <div className="max-w-full">
                 
                 {/* --- TOPBAR --- */}
-                <div className="bg-[#3f5efb] px-16 py-6 pb-8 shadow-lg mb-[10px]">
+                <div className="px-16 py-6 pb-8 shadow-lg mb-[10px]" style={{ backgroundColor: themeColor, color: themeTextColor }}>
                   <div className="max-w-6xl mx-auto flex flex-col gap-4">
                     <div className="flex justify-between items-center">
                       <div className="flex items-center gap-6 animate-in slide-in-from-left-4 duration-500">
-                        <div className="p-3 bg-white/20 backdrop-blur-md rounded-2xl shadow-inner text-white">
+                        <div className="p-3 bg-white/20 backdrop-blur-md rounded-2xl shadow-inner" style={{ color: themeTextColor }}>
                           <IconComponent name={activeCollection.icon} size={32} />
                         </div>
-                        <h1 className="text-4xl font-black tracking-tighter leading-none text-white !text-white" style={{ color: '#ffffff' }}>
+                        <h1 className="text-4xl font-black tracking-tighter leading-none" style={{ color: themeTextColor }}>
                           {activeCollection.name}
                         </h1>
                       </div>
+                      <div className="flex flex-col gap-3 rounded-[40px] bg-white/10 border border-white/20 px-5 py-4 shadow-xl backdrop-blur-md" style={{ minWidth: '280px' }}>
+                        <button
+                          onClick={() => setShowThemeControls((current) => !current)}
+                          className="inline-flex items-center gap-3 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-black shadow-lg transition-all hover:bg-white/20"
+                          style={{ color: themeTextColor }}
+                        >
+                          <span
+                            className="inline-flex h-9 w-9 rounded-full border border-white/20"
+                            style={{ background: `conic-gradient(${themeColor} 0deg 180deg, ${collectionBgColor} 180deg 360deg)` }}
+                          />
+                          <span>Cambiar tema</span>
+                        </button>
 
+                        {showThemeControls && (
+                          <div className="grid grid-cols-1 gap-3 pt-2">
+                            <label className="text-[10px] uppercase tracking-[2px] opacity-80" style={{ color: themeTextSecondaryColor }}>
+                              Color topbar & sidebar
+                            </label>
+                            <input
+                              type="color"
+                              value={themeColor}
+                              onChange={(e) => setThemeColor(e.target.value)}
+                              className="h-11 w-full rounded-2xl border border-white/20 p-0 cursor-pointer"
+                              style={{ backgroundColor: themeColor, color: themeTextColor }}
+                            />
+                            <label className="text-[10px] uppercase tracking-[2px] opacity-80" style={{ color: themeTextSecondaryColor }}>
+                              Color fondo colección
+                            </label>
+                            <input
+                              type="color"
+                              value={collectionBgColor}
+                              onChange={(e) => setCollectionBgColor(e.target.value)}
+                              className="h-11 w-full rounded-2xl border border-white/20 p-0 cursor-pointer"
+                              style={{ backgroundColor: collectionBgColor, color: collectionBgTextColor }}
+                            />
+                          </div>
+                        )}
+                      </div>
                     </div>
 
                     <div className="flex items-center gap-6 w-full max-w-4xl animate-in slide-in-from-bottom-2 duration-500">
                       <div className="flex-grow flex items-center gap-4 bg-white/10 backdrop-blur-md border border-white/20 px-6 py-2.5 rounded-[25px] shadow-xl hover:bg-white/20 transition-all group focus-within:bg-white/20 focus-within:ring-2 focus-within:ring-white/30">
-                        <Search size={18} className="text-white/70 group-focus-within:text-white transition-colors" />
+                        <Search size={18} className="transition-colors" style={{ color: themeTextSecondaryColor }} />
                         <input
                           type="text"
                           value={searchQuery}
                           onChange={(e) => setSearchQuery(e.target.value)}
                           placeholder={`Buscar en ${activeCollection.name.toLowerCase()}...`}
-                          className="bg-transparent border-none outline-none w-full text-sm font-bold text-white !text-white placeholder:text-white/40"
-                          style={{ color: '#ffffff' }}
+                          className="bg-transparent border-none outline-none w-full text-sm font-bold placeholder:text-current"
+                          style={{ color: themeTextColor, caretColor: themeTextColor }}
                         />
                         {searchQuery && (
-                          <button onClick={() => setSearchQuery('')} className="text-white/40 hover:text-white transition-colors cursor-pointer">
+                          <button onClick={() => setSearchQuery('')} className="transition-colors cursor-pointer" style={{ color: themeTextMutedColor }}>
                             <X size={16} />
                           </button>
                         )}
                       </div>
 
                       <div className="flex items-center gap-4 bg-white/10 backdrop-blur-md border border-white/20 px-6 py-2 rounded-[25px] shadow-xl whitespace-nowrap">
-                        <Filter size={14} className="text-white/60" />
+                        <Filter size={14} className="transition-colors" style={{ color: themeTextSecondaryColor }} />
                         <div className="flex gap-2">
                           {[1, 2, 3, 4, 5].map((star) => (
                             <button
                               key={star}
                               onClick={() => setExactRating(exactRating === star ? 0 : star)}
-                              className={`transition-all hover:scale-125 cursor-pointer relative ${exactRating === star ? 'text-yellow-400' : 'text-white/20'}`}
+                              className="transition-all hover:scale-125 cursor-pointer relative"
+                              style={{ color: exactRating === star ? '#FACC15' : themeTextMutedColor }}
                             >
                               <Star size={20} fill={exactRating === star ? 'currentColor' : 'none'} strokeWidth={exactRating === star ? 0 : 2} />
                               {exactRating === star && (
@@ -196,7 +275,8 @@ function App() {
                         {exactRating > 0 && (
                           <button 
                             onClick={() => setExactRating(0)}
-                            className="ml-2 text-[10px] font-black uppercase text-white/40 hover:text-white transition-colors cursor-pointer"
+                            className="ml-2 text-[10px] font-black uppercase hover:opacity-80 transition-opacity cursor-pointer"
+                            style={{ color: themeTextMutedColor }}
                           >
                             Reset
                           </button>
