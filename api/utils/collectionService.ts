@@ -12,8 +12,9 @@ const defaultCollections = [
 const defaultThemeColor = '#3f5efb';
 const defaultCollectionBgColor = '#f0f2f5';
 
-const parseCollections = (value: string | null) => {
+const parseCollections = (value: any) => {
   if (!value) return null;
+  if (typeof value === 'object') return value;
   try {
     return JSON.parse(value);
   } catch (error) {
@@ -24,7 +25,7 @@ const parseCollections = (value: string | null) => {
 
 const getCollectionsFromKv = async () => {
   try {
-    const stored = await kv.get<string>(COLLECTIONS_KEY);
+    const stored = await kv.get(COLLECTIONS_KEY);
     return parseCollections(stored ?? null);
   } catch (error) {
     console.error('KV error reading collections:', error);
