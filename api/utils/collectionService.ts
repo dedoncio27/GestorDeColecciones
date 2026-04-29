@@ -36,8 +36,10 @@ const getCollectionsFromKv = async () => {
 const saveCollectionsToKv = async (collections: any[]) => {
   try {
     await kv.set(COLLECTIONS_KEY, JSON.stringify(collections));
+    console.log(`Successfully saved ${collections.length} collections to KV`);
   } catch (error) {
-    console.error('KV error writing collections:', error);
+    console.error('CRITICAL: KV error writing collections:', error);
+    throw new Error('No se pudo guardar en la base de datos. Verifica la configuración de Vercel KV.');
   }
 };
 
@@ -155,9 +157,6 @@ export const saveSettings = async ({ themeColor, collectionBgColor }: { themeCol
     };
   } catch (error) {
     console.error('KV error saving settings:', error);
-    return {
-      themeColor: themeColor || defaultThemeColor,
-      collectionBgColor: collectionBgColor || defaultCollectionBgColor,
-    };
+    throw new Error('Error al guardar la configuración en KV');
   }
 };
